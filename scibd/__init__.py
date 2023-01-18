@@ -1,1 +1,1 @@
-from .scibd import *
+from .scIBD import *
