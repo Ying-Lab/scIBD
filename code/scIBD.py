@@ -507,7 +507,6 @@ def GetStrategy(mat,jac):
     Parameters ={'eps':0.1,'min_samples':mat.shape[0]*0.005}
     db1 = DBSCAN(eps = Parameters['eps'], min_samples = Parameters['min_samples'], metric = 'euclidean').fit(PCA_umap) 
     cl_PCA = db1.labels_
-    print(set(cl_PCA))
 
     try:
         chs1 = calinski_harabasz_score(PCA_umap,cl_PCA)
@@ -519,7 +518,6 @@ def GetStrategy(mat,jac):
     UMAP_PCoA = StandardScaler().fit_transform(UMAP_PCoA) 
     db2 = DBSCAN(eps = Parameters['eps'], min_samples = Parameters['min_samples'], metric = 'euclidean').fit(UMAP_PCoA) 
     cl_PCoA = db2.labels_
-    print(set(cl_PCoA))
     try:
         chs2 = calinski_harabasz_score(PCA_umap,cl_PCoA)
     except:
@@ -528,7 +526,6 @@ def GetStrategy(mat,jac):
         divides = chs1/chs2
     else:
         divides= chs2/chs1
-    print(chs1,chs2,divides)
     if divides<1.5:
         strategy = 'PCA'
     else:
