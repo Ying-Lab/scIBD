@@ -578,7 +578,7 @@ class KNNIter(object):
         ##jaccard distance mat of raw set
         self.jac = metrics.pairwise_distances(self.rawmat.A, Y=None, metric='jaccard', n_jobs=self.core)
         if strategy is None:
-            print('evaluating the input data!')
+            print('Assessing the input data!')
             self.strategy = GetStrategy(self.rawmat,self.jac)
         else:
             self.strategy = strategy
