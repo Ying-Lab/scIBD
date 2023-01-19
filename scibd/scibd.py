@@ -684,5 +684,6 @@ class KNNIter(object):
         proba_final = np.mean(score_pool,axis = 0)
         min_max_scaler = MinMaxScaler( )
         proba_final = min_max_scaler.fit_transform(proba_final.reshape(-1, 1)).squeeze()
-        return label_refer,score_pool,proba_final
+        thresh_final = np.quantile(proba_final,1-exprate,interpolation= 'higher')
+        return labelmat[proba_final > thresh_final],proba_final
         
