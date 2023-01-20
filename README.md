@@ -9,6 +9,7 @@ Installation
 -----
 
 ```bash
+pip install -r requirements.txt 
 git clone git://github.com/Ying-Lab/scIBD
 cd scIBD
 python setup.py install
