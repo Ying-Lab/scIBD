@@ -25,11 +25,9 @@ result = KNNITER.IterCall()
 Parameters
 -----
 input: the count matrix(numpy or scipy)
-
 output: the idx of predicted doublets; the doublet scores of all droplets
 
 other parameters:
-
 exprate: the expected calling rate of doublets, default 0.1
 
 
