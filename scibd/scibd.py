@@ -9,6 +9,7 @@ Created on Wed Oct 20 14:49:41 2021
 import sys
 import numpy as np
 import pandas as pd
+import anndata
 import scipy 
 import math
 from scipy import spatial
@@ -539,9 +540,15 @@ def GetStrategy(mat,jac):
 ###define main function here
 class KNNIter(object):
     def __init__(self, rawmat, strategy = None, core = None, sim_rate= None, nPC=None, neigbors=None, nTree=None, label= None, exprate = None):
+        ##判断是否是adata格式输入
+        if isinstance(rawmat, anndata.AnnData):
+            rawmat_ann = rawmat
+            rawmat = rawmat.X 
+        else:
+            rawmat = rawmat        
         ##preprocess1, select the peaks that are open in more than 1% cells
         rawmat_pf = rawmat[:,(rawmat.sum(axis = 0)> 0.01* rawmat.shape[0]).A.squeeze()]
-        print(rawmat_pf.shape)
+#         print(rawmat_pf.shape)
         self.rawmat = rawmat
         self.fmat = rawmat_pf
         
@@ -684,5 +691,14 @@ class KNNIter(object):
         min_max_scaler = MinMaxScaler( )
         proba_final = min_max_scaler.fit_transform(proba_final.reshape(-1, 1)).squeeze()
         thresh_final = np.quantile(proba_final,1-exprate,interpolation= 'higher')
-        return labelmat[proba_final > thresh_final],proba_final
+        ##如果是ann格式输入，返回一个ann，obs中增加两列信息;如果是numpy输入，返回predicted doublet序号及doublet score
+        try:
+            rawmat_ann
+            pred_results = np.zeros(proba_final.shape[0])
+            pred_results[proba_final > thresh_final] = 1
+            rawmat_ann.obs['PredDBL'] = pred_results
+            rawmat_ann.obs['DBLscore'] = proba_final
+            return rawmat_ann
+        except:
+            return labelmat[proba_final > thresh_final],proba_final
         
