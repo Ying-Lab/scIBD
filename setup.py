@@ -19,7 +19,7 @@ URL = 'https://github.com/Ying-Lab/scIBD/'
 EMAIL = '23220210156258@stu.xmu.edu.cn'
 AUTHOR = 'Wenhao Zhang'
 REQUIRES_PYTHON = '==3.8.0'
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
