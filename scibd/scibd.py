@@ -587,10 +587,9 @@ class KNNIter(object):
             self.strategy = strategy
     def IterCall(self, mat=None, strategy=None, core=None, simrate=None, npc=None, k=None, n_tree=None, labelmat=None, exprate=None):
 # #     def IterCall(mat=self.rawmat, strategy=self.strategy, core=self.core, simrate=self.sim_rate, npc=self.nPC, k=self.neigbors, n_tree=self.nTree, labelmat=self.label, exprate=self.exprate):
-#     def IterCall(self):
         
         if mat is None:
-            mat = self.rawmat 
+            mat = self.fmat 
         if isinstance(mat, np.ndarray):
             mat = scipy.sparse.csr_matrix(mat)
         if strategy is None:
