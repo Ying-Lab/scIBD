@@ -539,7 +539,7 @@ def GetStrategy(mat,jac):
 
 ###define main function here
 class KNNIter(object):
-    def __init__(self, rawmat, strategy = None, core = None, sim_rate= None, nPC=None, neigbors=None, nTree=None, label= None, exprate = None):
+    def __init__(self, rawmat, strategy = None, core = None, sim_rate= None, nPC=None, neighbors=None, nTree=None, label= None, exprate = None):
         ##判断是否是adata格式输入
         if isinstance(rawmat, anndata.AnnData):
             rawmat_ann = rawmat
@@ -569,10 +569,10 @@ class KNNIter(object):
             self.nPC = 5
         else:
             self.nPC = nPC
-        if neigbors is None:
-            self.neigbors = 40
+        if neighbors is None:
+            self.neighbors = 40
         else:
-            self.neigbors = neigbors
+            self.neighbors = neighbors
         if nTree is None:
             self.nTree = 30
         else:
@@ -593,7 +593,7 @@ class KNNIter(object):
         else:
             self.strategy = strategy
     def IterCall(self, mat=None, strategy=None, core=None, simrate=None, npc=None, k=None, n_tree=None, labelmat=None, exprate=None):
-# #     def IterCall(mat=self.rawmat, strategy=self.strategy, core=self.core, simrate=self.sim_rate, npc=self.nPC, k=self.neigbors, n_tree=self.nTree, labelmat=self.label, exprate=self.exprate):
+# #     def IterCall(mat=self.rawmat, strategy=self.strategy, core=self.core, simrate=self.sim_rate, npc=self.nPC, k=self.neighbors, n_tree=self.nTree, labelmat=self.label, exprate=self.exprate):
         
         if mat is None:
             mat = self.fmat 
@@ -608,7 +608,7 @@ class KNNIter(object):
         if npc is None:
             npc = self.nPC
         if k is None:
-            k = self.neigbors
+            k = self.neighbors
         if n_tree is None:
             n_tree = self.nTree
         if labelmat is None:
@@ -657,7 +657,7 @@ class KNNIter(object):
 #             #####option reject criteria : the lower quantile of sim
             
 #             unlabel_neig = stac_nei[score_unlabel.index]
-#             predict_idx = score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neigbors)],axis=0)].index
+#             predict_idx = score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neighbors)],axis=0)].index
             predict_idx = score_unlabel[score_unlabel[0]>thresh_accept].index
 
 
@@ -672,7 +672,7 @@ class KNNIter(object):
             else:
                 scalar2 = MinMaxScaler(feature_range=(0.1,0.9))
                 predict_idx_score = scalar2.fit_transform(np.array(score_unlabel[score_unlabel[0]>thresh_accept])).reshape(1,-1)
-#                 predict_idx_score = scalar.fit_transform(np.array(score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neigbors)],axis=0)])).reshape(1,-1)
+#                 predict_idx_score = scalar.fit_transform(np.array(score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neighbors)],axis=0)])).reshape(1,-1)
 
                  ###这一轮迭代的结果传给下一轮
                 label_refer[predict_idx] = predict_idx_score
