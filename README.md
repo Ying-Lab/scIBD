@@ -25,9 +25,13 @@ result = KNNITER.IterCall()
 ```
 Parameters
 -----
-input: the count matrix(numpy or scipy)
+input: the AnnData; or the count matrix(numpy or scipy)
 
-output: the idx of predicted doublets; the doublet scores of all droplets
+output: 
+
+if the input is an obeject of AnnData, the output is also an AnnData, the obs adds two columns: obs['PredDBL'] is the predicted results where 1 indicates the predicted doublets and 0 indicates the singlets; obs['DBLscore'] is the doublet scores of all droplets.
+
+if the input is the count matrix, the output are the idx of predicted doublets and the doublet scores of all droplets
 
 -----
 other parameters:
