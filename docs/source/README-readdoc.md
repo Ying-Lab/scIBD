@@ -1,17 +1,25 @@
-# scIBD
+https://github.com/Ying-Lab/scIBD
+-----
+
+Introduction
+-----
 scIBD is a doublet detection tool for scCAS data.
+
+git://github.com/Ying-Lab/scIBD
 
 scIBD is totally produced by Python.
 
-The depending packages used in scIBD can be installed by the command pip/pip3 install -r requirements.txt 
 
 Installation
 -----
 
 
 pip install -r requirements.txt 
-git clone git://github.com/Ying-Lab/scIBD
+
+git clone https://github.com/Ying-Lab/scIBD
+
 cd scIBD
+
 python setup.py install
 
 
@@ -19,7 +27,9 @@ Running
 -----
 
 import scibd as si
+
 KNNITER = si.KNNIter(input)
+
 result = KNNITER.IterCall()
 
 
