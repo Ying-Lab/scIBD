@@ -5,7 +5,7 @@ Introduction
 -----
 scIBD is a doublet detection tool for scCAS data.
 
-git://github.com/Ying-Lab/scIBD
+https://github.com/Ying-Lab/scIBD
 
 scIBD is totally produced by Python.
 
