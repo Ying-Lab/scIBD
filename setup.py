@@ -18,8 +18,8 @@ DESCRIPTION = 'A doublet detetion tool for scCAS data.'
 URL = 'https://github.com/Ying-Lab/scIBD/'
 EMAIL = '23220210156258@stu.xmu.edu.cn'
 AUTHOR = 'Wenhao Zhang'
-REQUIRES_PYTHON = '==3.8.0'
-VERSION = '0.1.2'
+REQUIRES_PYTHON = '>=3.8.0'
+VERSION = '0.1.3'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
