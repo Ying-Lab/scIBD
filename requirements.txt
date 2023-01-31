@@ -7,6 +7,5 @@ scanpy==1.9.1
 scikit_bio==0.5.8
 scikit_learn==1.2.0
 scipy==1.7.1
-seaborn==0.11.1
 umap==0.1.1
 umap_learn==0.5.1
