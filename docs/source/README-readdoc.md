@@ -12,13 +12,11 @@ scIBD is totally produced by Python.
 
 Installation
 -----
-
-
-pip install -r requirements.txt 
-
 git clone https://github.com/Ying-Lab/scIBD
 
 cd scIBD
+
+pip install -r requirements.txt 
 
 python setup.py install
 
