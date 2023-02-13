@@ -25,7 +25,7 @@ result = KNNITER.IterCall()
 ```
 Parameters
 -----
-input: the AnnData; or the count matrix(numpy or scipy)
+input: the AnnData; or the count matrix(numpy or scipy) row: droplets; colomn: peaks/bins. 
 
 output: 
 
