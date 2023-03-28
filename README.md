@@ -50,7 +50,8 @@ neighbors: The number of neighbors used to construct KNN graph, default is 40.
 
 n_tree: The number of trees in KNN constrcution, default is 30.
 
-
-
+External links
+-----
+scIBD along with detailed documentation is freely accessible at https://scibd.readthedocs.io under the MIT License.
 
 
