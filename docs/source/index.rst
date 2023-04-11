@@ -8,15 +8,8 @@ Welcome to scibd's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
    
    README-readdoc
 
 
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
