@@ -151,18 +151,13 @@ def findpeaks(mat,cl,rate):
 def GetUMAP(mat):
     var_names = pd.DataFrame(np.array(range(mat.shape[1])), columns=['peak_names'])
     col_names = pd.DataFrame(np.array(range(mat.shape[0])), columns=['cell_names'])
-    time0 = time.time()
     adata = sc.AnnData(TF_IDF_Pro(mat.T).T,obs=col_names, var=var_names,)
     ##this step used the former TF-IDF matrix
-    time1 = time.time()
-    print('TFIDF:', time1-time0)
     adata.obs_names = col_names.cell_names
     adata.var_names = var_names.peak_names
     sc.tl.pca(adata, svd_solver='arpack')
     sc.pp.neighbors(adata, n_neighbors=30,n_pcs=30)
     sc.tl.umap(adata,min_dist=0.4)
-    time2 = time.time()
-    print('PCA+UMAP',time2-time1)
     return adata.obsm['X_umap']
 
 ##import scipy
