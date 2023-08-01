@@ -117,7 +117,7 @@ def GetCluster(mat):
     PCA_umap = StandardScaler().fit_transform(PCA_umap) 
     
     distance = metrics.pairwise_distances(PCA_umap, Y=None, metric='euclidean', n_jobs=64)
-    Parameters ={'eps':0.1,'min_samples':mat.shape[0]*0.005}
+    Parameters ={'eps':0.1,'min_samples':int(mat.shape[0]*0.005)}
     db = DBSCAN(eps = Parameters['eps'], min_samples = Parameters['min_samples'],metric = 'precomputed').fit(distance) 
     cl = db.labels_
     return cl,distance
@@ -566,7 +566,7 @@ def GetStrategy(mat,jac):
     PCA_umap = StandardScaler().fit_transform(PCA_umap) 
 #     distance = metrics.pairwise_distances(PCA_umap, Y=None, metric='euclidean', n_jobs=64)
     ##adjusted
-    Parameters ={'eps':0.1,'min_samples':mat.shape[0]*0.005}
+    Parameters ={'eps':0.1,'min_samples':int(mat.shape[0]*0.005)}
     db1 = DBSCAN(eps = Parameters['eps'], min_samples = Parameters['min_samples'], metric = 'euclidean').fit(PCA_umap) 
     cl_PCA = db1.labels_
 
