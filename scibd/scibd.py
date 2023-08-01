@@ -17,6 +17,7 @@ import os
 import random
 import time
 import tracemalloc
+import multiprocessing as mp
 import psutil
 from sklearn import metrics
 from sklearn.decomposition import PCA
@@ -24,7 +25,6 @@ from sklearn.preprocessing import MinMaxScaler
 import scipy.io as scio
 import umap
 import skbio
-import multiprocessing as mp
 from mpl_toolkits.mplot3d import axes3d
 from scipy import stats
 import seaborn as sns
@@ -41,23 +41,56 @@ from sklearn.metrics import average_precision_score
 from sklearn.metrics import roc_curve, auc
 from sklearn import preprocessing
 from sklearn.metrics import calinski_harabasz_score
+from sklearn.feature_extraction.text import TfidfTransformer
 import matplotlib
 warnings.filterwarnings("ignore")
 random.seed(1111)
 np.random.seed(1111)
 
 
-def TF_IDF_Pro(count_mat):
-    nfreqs = (1.0 * count_mat / np.tile(np.sum(count_mat,axis=0), (count_mat.shape[0],1))).A
-    tfidf_mat = nfreqs * (np.tile(np.log(1 + 1.0 * count_mat.shape[1] / np.sum(count_mat,axis=1)).reshape(-1,1), (1,count_mat.shape[1]))).A
-    if np.sum(np.isnan(tfidf_mat) == True) != 0:
-        #print("The results of TF-IDF contain nan, replacing it with zero!")
-        tfidf_mat[np.isnan(tfidf_mat)] = 0 
-    if np.sum(np.isinf(tfidf_mat) == True) != 0:
-        print("The results of TF-IDF contain inf, replacing it with mean value!")
-        tfidf_mat = fill_ndarray(tfidf_mat)
-#     print('tf-idf done')
-    return scipy.sparse.csr_matrix(tfidf_mat.T)
+# def TF_IDF_Pro(count_mat):
+#     nfreqs = (1.0 * count_mat / np.tile(np.sum(count_mat,axis=0), (count_mat.shape[0],1))).A
+#     tfidf_mat = nfreqs * (np.tile(np.log(1 + 1.0 * count_mat.shape[1] / np.sum(count_mat,axis=1)).reshape(-1,1), (1,count_mat.shape[1]))).A
+#     if np.sum(np.isnan(tfidf_mat) == True) != 0:
+#         #print("The results of TF-IDF contain nan, replacing it with zero!")
+#         tfidf_mat[np.isnan(tfidf_mat)] = 0 
+#     if np.sum(np.isinf(tfidf_mat) == True) != 0:
+#         print("The results of TF-IDF contain inf, replacing it with mean value!")
+#         tfidf_mat = fill_ndarray(tfidf_mat)
+# #     print('tf-idf done')
+#     return scipy.sparse.csr_matrix(tfidf_mat.T)
+
+# Perform TF-IDF (count_mat: peak*cell)
+def TF_IDF_Pro(count_mat): 
+    
+    if not scipy.sparse.issparse(count_mat):
+        count_mat = scipy.sparse.coo_matrix(count_mat)
+        
+    nfreqs = count_mat.multiply(1.0 / count_mat.sum(axis=0))
+    tfidf_mat = nfreqs.multiply(np.log(1 + 1.0 * count_mat.shape[1] / count_mat.sum(axis=1)).reshape(-1,1)).tocoo()
+    
+    return tfidf_mat
+
+# def TF_IDF_Pro(count_mat): ##cell*peak
+#     model = TfidfTransformer(smooth_idf=False, norm="l2")
+#     model = model.fit(np.transpose(count_mat))
+#     model.idf_ -= 1
+#     tf_idf = np.transpose(model.transform(np.transpose(count_mat)))
+#     return scipy.sparse.csr_matrix(tf_idf)
+
+def CalJac(A,B=None):##scipy mat
+    A = A.astype(bool).astype(int)
+    if B is None:
+        B = A
+    else:
+        B = B.astype(bool).astype(int)
+    intersect = A.dot(B.T)
+    a_sum = A.sum(axis=1).A1
+    b_sum = B.sum(axis=1).A1
+    xx,yy = np.meshgrid(a_sum, b_sum)
+    union = ((xx+yy).T - intersect)
+    jac_distance = (1-intersect/union).A
+    return jac_distance
 
 def F1(score, label):
     assert len(score) == len(label)
@@ -114,24 +147,41 @@ def findpeaks(mat,cl,rate):
     idxbool = var_peak > np.quantile(var_peak,rate,interpolation='higher')
     return idxbool
 
-
+##import scipy
 def GetUMAP(mat):
     var_names = pd.DataFrame(np.array(range(mat.shape[1])), columns=['peak_names'])
     col_names = pd.DataFrame(np.array(range(mat.shape[0])), columns=['cell_names'])
-
-    adata = sc.AnnData(TF_IDF_Pro(mat.T),obs=col_names, var=var_names,)
+    time0 = time.time()
+    adata = sc.AnnData(TF_IDF_Pro(mat.T).T,obs=col_names, var=var_names,)
+    ##this step used the former TF-IDF matrix
+    time1 = time.time()
+    print('TFIDF:', time1-time0)
     adata.obs_names = col_names.cell_names
     adata.var_names = var_names.peak_names
     sc.tl.pca(adata, svd_solver='arpack')
     sc.pp.neighbors(adata, n_neighbors=30,n_pcs=30)
     sc.tl.umap(adata,min_dist=0.4)
+    time2 = time.time()
+    print('PCA+UMAP',time2-time1)
     return adata.obsm['X_umap']
 
+##import scipy
+def GetSparseUnion(A, B = None):
+    if B is None:
+        B = A
+    intersect = A.dot(B.T)
+    A_sum = A.sum(axis=1).A1
+    B_sum = B.sum(axis=1).A1
+    xx,yy = np.meshgrid(A_sum,B_sum)
+    union = ((xx+yy).T - intersect)
+    return union
+
+##import scipy
 def CreateDoublets_Cluster_weighted(simulate_size, mat, distancemat, clusterlab):
 #     print('simulating start',simulate_size)
     np.random.seed(1111)
     assert simulate_size != 0
-    mat = scipy.sparse.csr_matrix(mat.astype(np.uint8))
+#     mat = scipy.sparse.csr_matrix(mat.astype(np.uint8))
     clusterlab = clusterlab.astype(str)     
     cluster_uniq = list(set(clusterlab))
 #     print(len(cluster_uniq), 'clusters')
@@ -158,9 +208,9 @@ def CreateDoublets_Cluster_weighted(simulate_size, mat, distancemat, clusterlab)
     for item in cluster_bi_weight:
         cluster_bi_weight[item] = cluster_weight[item.split('_')[0]] * cluster_weight[item.split('_')[1]]
 
-    single1set = []
-    single2set = []
-    simulatelabel = []
+#     single1set = []
+#     single2set = []
+#     simulatelabel = []
     L1_size = int(simulate_size/3*2)
     ####若聚类只有1，全部随机
     
@@ -172,24 +222,36 @@ def CreateDoublets_Cluster_weighted(simulate_size, mat, distancemat, clusterlab)
         
         idx1 = np.random.choice(len(clusterlab[clusterlab == ramtype[0]]),1)
         idx2 = np.random.choice(len(clusterlab[clusterlab == ramtype[1]]),1)
-        single1set.append(mat[clusterlab == ramtype[0]][idx1].A)
-        single2set.append(mat[clusterlab == ramtype[1]][idx2].A)
+        try:
+            single1set = scipy.sparse.vstack((single1set,mat[clusterlab == ramtype[0]][idx1]))
+            single2set = scipy.sparse.vstack((single2set,mat[clusterlab == ramtype[1]][idx2]))
+        except:
+            single1set = mat[clusterlab == ramtype[0]][idx1]
+            single2set = mat[clusterlab == ramtype[1]][idx2]
+#         single1set.append(mat[clusterlab == ramtype[0]][idx1].A)
+#         single2set.append(mat[clusterlab == ramtype[1]][idx2].A)。
 #         doublet = scipy.sparse.csr_matrix(mat[clusterlab == ramtype[0]][idx1].A | mat[clusterlab == ramtype[1]][idx2].A)
 
     
     for i in range(simulate_size - L1_size):
 
         idxset = np.random.choice(mat.shape[0],2)
-        single1set.append(mat[idxset[0]].A)
-        single2set.append(mat[idxset[1]].A)
+        single1set = scipy.sparse.vstack((single1set,mat[idxset[0]]))
+        single2set = scipy.sparse.vstack((single2set,mat[idxset[1]]))
+#         single1set.append(mat[idxset[0]].A)
+#         single2set.append(mat[idxset[1]].A)
 #         doublet = scipy.sparse.csr_matrix(mat[clusterlab == ramtype[0]][idx1].A | mat[clusterlab == ramtype[1]][idx2].A)
 
-    single1set = np.array(single1set).squeeze().astype(np.uint8)
-    single2set = np.array(single2set).squeeze().astype(np.uint8)
-    sim_set = scipy.sparse.csr_matrix(single1set|single2set)
-    simulatelabel = np.array(simulatelabel)
+
+#     sim_set = GetSparseUnion(single1set,single2set)
+    sim_set = (single1set + single2set).astype(np.uint8)
+
+#     sim_set = scipy.sparse.csr_matrix(single1set|single2set)
+#     simulatelabel = np.array(simulatelabel)
     print(simulate_size,'Doublets Construction Done!')
     return sim_set
+
+
 
 
 def Splitmat(matsize,ncore):
@@ -202,17 +264,19 @@ def Splitmat(matsize,ncore):
     return idx_set
 
 
+##import csr
 def ReshapeJac(mat_conc,label_conc,jac_raw,core):
 #     print('reshape jaccard')
     A = mat_conc[label_conc != 1]  
     B = mat_conc[label_conc == 1]
     ###判断是不是simulated doublets
-    jac_extra = metrics.pairwise_distances(B.A, Y=mat_conc.A, metric='jaccard', n_jobs=core)
+#     jac_extra = metrics.pairwise_distances(B.A, Y=mat_conc.A, metric='jaccard', n_jobs=core)
+    jac_extra = CalJac(B,mat_conc)
     jac_new = np.vstack((jac_raw, jac_extra[:,0:A.shape[0]]))
     jac_new = np.hstack((jac_new,jac_extra.T))
 
-    for i in range(len(jac_new)):
-        assert jac_new[i][i] == 0 
+#     for i in range(len(jac_new)):
+#         assert jac_new[i][i] == 0 
     return jac_new
 
 def PCoA(mat_jaccard,npc,showfig=False):
@@ -235,6 +299,7 @@ def concat_set(iteration, jac,mat, sim_rate, label_refer):
     cl, cd = GetCluster(mat_unlabel)
     #######在这一步决定simsize，为未分类样本数的10% - 40% 
     sim_size = int(sim_rate * mat_unlabel.shape[0])
+    time_start = time.time()
     simDOU = CreateDoublets_Cluster_weighted(sim_size, mat_unlabel,cd,cl)
     mat_concat = scipy.sparse.vstack((mat,simDOU)).astype(np.uint8)
     label_refer[label_refer==0.05] = 0
@@ -415,9 +480,9 @@ def CallDoublet_PCA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,l
     ###mat_concat所有细胞+sim
     ###label_concat 带标记的raw(0 /3)+ sim(1) 
     
-    mat_inuse = GetUMAP(mat_concat)
+    distance_inuse = GetUMAP(mat_concat)
     ###k为构建knn图时所用的邻居节点default
-    knn,distance = get_knn_graph(mat_inuse, k, n_tree)
+    knn,distance = get_knn_graph(distance_inuse, k, n_tree)
     
     ####3 parts: 1. 未标记unlabel； 2.已标记detected; 3.simulated 
     cells_unlabel_knn = knn[label_concat==0]
@@ -452,16 +517,15 @@ def CallDoublet_PCA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,l
     return score_unlabel,score_sim,score_detected
 
 def CallDoublet_PCoA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,labelmat):
-
     mat_concat, label_concat = concat_set(iteration, jac, mat,sim,label_refer)
     ####label_concat只包含{0:unlabel; 0-1:predicted doublets; 1:simulated doublets}
     ###mat_concat所有细胞+sim
     ####基于重构的mat，计算原始细胞与新的doublet之间的关系
     ###只需计算新的simulated 与 raw 的jaccard
     mat_jaccard = ReshapeJac(mat_concat, label_concat, jac, core)
+#     mat_jaccard = CalJac(mat_concat)
     ##PCoA_ased
     mat_inuse = PCoA(mat_jaccard,npc)
-
 
     ###k为构建knn图时所用的邻居节点default
     knn,distance = get_knn_graph(mat_inuse, k, n_tree)
@@ -494,13 +558,15 @@ def CallDoublet_PCoA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,
         score_detected = CalKNNScore(cells_detected_knn,cells_detected_distance,np.min(distance),np.max(distance),label_concat)
         score_detected = pd.DataFrame(score_detected)
         score_detected.index = cell_detected_idx
-
+    time5 = time.time()
+    print('Scoring: ',time5-time4)
     return score_unlabel,score_sim,score_detected
 
 
 
 def GetStrategy(mat,jac):
-    PCA_umap = GetUMAP(scipy.sparse.csr_matrix(mat))
+#     PCA_umap = GetUMAP(scipy.sparse.csr_matrix(mat))
+    PCA_umap = GetUMAP(mat)
 #     PCA_umap = MinMaxScaler().fit_transform(PCA_umap) 
     PCA_umap = StandardScaler().fit_transform(PCA_umap) 
 #     distance = metrics.pairwise_distances(PCA_umap, Y=None, metric='euclidean', n_jobs=64)
@@ -508,7 +574,6 @@ def GetStrategy(mat,jac):
     Parameters ={'eps':0.1,'min_samples':mat.shape[0]*0.005}
     db1 = DBSCAN(eps = Parameters['eps'], min_samples = Parameters['min_samples'], metric = 'euclidean').fit(PCA_umap) 
     cl_PCA = db1.labels_
-    print(set(cl_PCA))
 
     try:
         chs1 = calinski_harabasz_score(PCA_umap,cl_PCA)
@@ -520,7 +585,6 @@ def GetStrategy(mat,jac):
     UMAP_PCoA = StandardScaler().fit_transform(UMAP_PCoA) 
     db2 = DBSCAN(eps = Parameters['eps'], min_samples = Parameters['min_samples'], metric = 'euclidean').fit(UMAP_PCoA) 
     cl_PCoA = db2.labels_
-    print(set(cl_PCoA))
     try:
         chs2 = calinski_harabasz_score(PCA_umap,cl_PCoA)
     except:
@@ -529,7 +593,6 @@ def GetStrategy(mat,jac):
         divides = chs1/chs2
     else:
         divides= chs2/chs1
-    print(chs1,chs2,divides)
     if divides<1.5:
         strategy = 'PCA'
     else:
@@ -539,16 +602,18 @@ def GetStrategy(mat,jac):
 
 ###define main function here
 class KNNIter(object):
-    def __init__(self, rawmat, strategy = None, core = None, sim_rate= None, nPC=None, neighbors=None, nTree=None, label= None, exprate = None):
-        ##判断是否是adata格式输入
+    def __init__(self, rawmat, strategy = None, core = None, sim_rate= None, nPC=None, neigbors=None, nTree=None, label= None, exprate = None):
         if isinstance(rawmat, anndata.AnnData):
-            rawmat_ann = rawmat
+            self.rawmat_ann = rawmat
             rawmat = rawmat.X 
         else:
-            rawmat = rawmat        
+            self.rawmat_ann = None
+            rawmat = rawmat   
         ##preprocess1, select the peaks that are open in more than 1% cells
+        ## transfer to scipy
+        rawmat = scipy.sparse.csr_matrix(rawmat).astype(np.uint8)
         rawmat_pf = rawmat[:,(rawmat.sum(axis = 0)> 0.01* rawmat.shape[0]).A.squeeze()]
-#         print(rawmat_pf.shape)
+        print(rawmat_pf.shape)
         self.rawmat = rawmat
         self.fmat = rawmat_pf
         
@@ -569,10 +634,10 @@ class KNNIter(object):
             self.nPC = 5
         else:
             self.nPC = nPC
-        if neighbors is None:
-            self.neighbors = 40
+        if neigbors is None:
+            self.neigbors = 40
         else:
-            self.neighbors = neighbors
+            self.neigbors = neigbors
         if nTree is None:
             self.nTree = 30
         else:
@@ -586,15 +651,22 @@ class KNNIter(object):
         else:
             self.exprate = exprate
         ##jaccard distance mat of raw set
-        self.jac = metrics.pairwise_distances(self.rawmat.A, Y=None, metric='jaccard', n_jobs=self.core)
+        time0 = time.time()
+#         self.jac = metrics.pairwise_distances(self.rawmat.A, Y=None, metric='jaccard', n_jobs=self.core)
+        self.jac = CalJac(self.rawmat)
+
+        time1 = time.time()
+        print('raw jaccard cal: ',time1-time0)
         if strategy is None:
             print('evaluating the input data!')
             self.strategy = GetStrategy(self.rawmat,self.jac)
+            time2 = time.time()
+            print('Evaluate time: ',time2-time1)
         else:
             self.strategy = strategy
     def IterCall(self, mat=None, strategy=None, core=None, simrate=None, npc=None, k=None, n_tree=None, labelmat=None, exprate=None):
-# #     def IterCall(mat=self.rawmat, strategy=self.strategy, core=self.core, simrate=self.sim_rate, npc=self.nPC, k=self.neighbors, n_tree=self.nTree, labelmat=self.label, exprate=self.exprate):
-        
+# #     def IterCall(mat=self.rawmat, strategy=self.strategy, core=self.core, simrate=self.sim_rate, npc=self.nPC, k=self.neigbors, n_tree=self.nTree, labelmat=self.label, exprate=self.exprate):
+#     def IterCall(self):
         if mat is None:
             mat = self.fmat 
         if isinstance(mat, np.ndarray):
@@ -608,7 +680,7 @@ class KNNIter(object):
         if npc is None:
             npc = self.nPC
         if k is None:
-            k = self.neighbors
+            k = self.neigbors
         if n_tree is None:
             n_tree = self.nTree
         if labelmat is None:
@@ -616,7 +688,7 @@ class KNNIter(object):
         if exprate is None:
             exprate = self.exprate
 
-#         time1 = time.time()
+        time_start = time.time()
         ###原始数据的jaccard
         jaccard_raw = self.jac
         ###参与KNN计算
@@ -630,6 +702,7 @@ class KNNIter(object):
         ####
         while random.sample([1]*loopproba+[0]*(10-loopproba),1)[0]:
             print('Iteration',iteration, 'start')
+            # time_iter_start = time.time()
             if strategy == 'PCA':
                 score_unlabel, score_sim, score_detected = CallDoublet_PCA(iteration, mat, simrate, jaccard_raw, core, npc, k, n_tree,label_refer,labelmat)
 
@@ -657,7 +730,7 @@ class KNNIter(object):
 #             #####option reject criteria : the lower quantile of sim
             
 #             unlabel_neig = stac_nei[score_unlabel.index]
-#             predict_idx = score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neighbors)],axis=0)].index
+#             predict_idx = score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neigbors)],axis=0)].index
             predict_idx = score_unlabel[score_unlabel[0]>thresh_accept].index
 
 
@@ -672,7 +745,7 @@ class KNNIter(object):
             else:
                 scalar2 = MinMaxScaler(feature_range=(0.1,0.9))
                 predict_idx_score = scalar2.fit_transform(np.array(score_unlabel[score_unlabel[0]>thresh_accept])).reshape(1,-1)
-#                 predict_idx_score = scalar.fit_transform(np.array(score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neighbors)],axis=0)])).reshape(1,-1)
+#                 predict_idx_score = scalar.fit_transform(np.array(score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neigbors)],axis=0)])).reshape(1,-1)
 
                  ###这一轮迭代的结果传给下一轮
                 label_refer[predict_idx] = predict_idx_score
@@ -684,21 +757,22 @@ class KNNIter(object):
             ####加上这轮预测的减去这轮拒绝后的数量达到expect，开启退火
             if len(pred_doub) > int(exprate * mat.shape[0]*0.9):
                 loopproba -= int(np.ceil(5/iteration))  
-#             print('Iteraion', iteration, 'elapse', time.time()-time_iter)
+            # print('Iteraion', iteration, 'elapse', time.time()-time_iter_start)
             iteration += 1
         
         proba_final = np.mean(score_pool,axis = 0)
         min_max_scaler = MinMaxScaler( )
         proba_final = min_max_scaler.fit_transform(proba_final.reshape(-1, 1)).squeeze()
         thresh_final = np.quantile(proba_final,1-exprate,interpolation= 'higher')
-        ##如果是ann格式输入，返回一个ann，obs中增加两列信息;如果是numpy输入，返回predicted doublet序号及doublet score
-        try:
-            rawmat_ann
+        print('Done')
+        time_final = time.time()
+        print('ALL time:', time_final - time_start)
+        if self.rawmat_ann is None:
+            return labelmat[proba_final > thresh_final],proba_final
+        else:
             pred_results = np.zeros(proba_final.shape[0])
             pred_results[proba_final > thresh_final] = 1
-            rawmat_ann.obs['PredDBL'] = pred_results
-            rawmat_ann.obs['DBLscore'] = proba_final
-            return rawmat_ann
-        except:
-            return labelmat[proba_final > thresh_final],proba_final
+            self.rawmat_ann.obs['PredDBL'] = pred_results
+            self.rawmat_ann.obs['DBLscore'] = proba_final
+            return self.rawmat_ann
         
