@@ -553,8 +553,6 @@ def CallDoublet_PCoA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,
         score_detected = CalKNNScore(cells_detected_knn,cells_detected_distance,np.min(distance),np.max(distance),label_concat)
         score_detected = pd.DataFrame(score_detected)
         score_detected.index = cell_detected_idx
-    time5 = time.time()
-    print('Scoring: ',time5-time4)
     return score_unlabel,score_sim,score_detected
 
 
@@ -650,13 +648,11 @@ class KNNIter(object):
 #         self.jac = metrics.pairwise_distances(self.rawmat.A, Y=None, metric='jaccard', n_jobs=self.core)
         self.jac = CalJac(self.rawmat)
 
-        time1 = time.time()
-        print('raw jaccard cal: ',time1-time0)
         if strategy is None:
             print('evaluating the input data!')
             self.strategy = GetStrategy(self.rawmat,self.jac)
             time2 = time.time()
-            print('Evaluate time: ',time2-time1)
+            print('Evaluate time: ',time2-time0)
         else:
             self.strategy = strategy
     def IterCall(self, mat=None, strategy=None, core=None, simrate=None, npc=None, k=None, n_tree=None, labelmat=None, exprate=None):
