@@ -243,7 +243,7 @@ def CreateDoublets_Cluster_weighted(simulate_size, mat, distancemat, clusterlab)
 
 #     sim_set = scipy.sparse.csr_matrix(single1set|single2set)
 #     simulatelabel = np.array(simulatelabel)
-    print(simulate_size,'Doublets Construction Done!')
+    # print(simulate_size,'Doublets Construction Done!')
     return sim_set
 
 
