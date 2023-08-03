@@ -23,6 +23,16 @@ KNNITER = si.KNNIter(input)
 result = KNNITER.IterCall()
 
 ```
+Example
+-----
+```bash
+import scibd as si
+import scanpy as sc
+dataset = sc.read_h5ad(./data/Forebrain.h5ad)
+KNNITER = si.KNNIter(dataset,strategy = 'PCoA')
+result = KNNITER.IterCall()
+
+```
 Parameters
 -----
 input: the AnnData; or the count matrix(numpy or scipy) row: droplets; colomn: peaks/bins. 
