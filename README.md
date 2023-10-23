@@ -64,4 +64,6 @@ External links
 -----
 scIBD along with detailed documentation is freely accessible at https://scibd.readthedocs.io under the MIT License.
 
-
+Citation
+-----
+Zhang W, Jiang R, Chen S, Wang Y. scIBD: a self-supervised iterative-optimizing model for boosting the detection of heterotypic doublets in single-cell chromatin accessibility data. Genome Biology. 2023 Oct 9;24(1):225.
