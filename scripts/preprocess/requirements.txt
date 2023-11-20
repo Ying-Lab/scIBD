@@ -1,0 +1,13 @@
+Required parameters:
+root: the BAM file dir
+dataset: the name of your dataset
+refer genome: the reference genome (hg19/hg38/mm9/mm10)
+
+Required tools:
+snATAC
+MACS3
+samtools
+R
+
+Required files:
+cells.xgi (containing the cell barcodes)
