@@ -11,3 +11,5 @@ R
 
 Required files:
 cells.xgi (containing the cell barcodes)
+
+We strongly encourage the users run the preprocessing step by step  according to https://github.com/r3fang/snATAC 
