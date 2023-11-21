@@ -1,2 +1,1 @@
 The metadata of MCA datasets including cell barcodes and annotated cell types, are embraced in MCA_cell_metada.txt
-The scripts of simualting ground-truth doublets are presented in preprocessing.ipynb
