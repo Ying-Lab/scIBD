@@ -284,7 +284,7 @@ def concat_set(iteration, jac,mat, sim_rate, label_refer):
 #              0.05:doublets reject
 #              0.1-0.9:doublets predicted
 #              1: simulated doublets}
-    ####先对未被分类的细胞做聚类，基于原始的jaccard；label_refer为0或0.05 
+    ####cluster the unlabelled cells based on the jaccard diatance matrix whose label_refer is 0 or 0.05 
     mat_unlabel = mat[np.any([label_refer == 0, label_refer == 0.05],axis = 0)]
     jac_unlabel = jac[np.any([label_refer == 0, label_refer == 0.05],axis = 0)][:,np.any([label_refer == 0, label_refer == 0.05],axis = 0)]
     cl_refer = label_refer[np.any([label_refer == 0, label_refer == 0.05],axis = 0)]
@@ -391,9 +391,8 @@ def Ramsplit(lenset,core):
 #     sns.distplot(score_raw.values.reshape(-1),color="grey")
 
 #     thresh = Cal3sigmathresh(score_raw.values.reshape(-1),score_sim)
-#     plt.plot(thresh[0],thresh[1], 'ro')###交点
+#     plt.plot(thresh[0],thresh[1], 'ro')
 #     plt.axvline(thresh[2],ls=":",lw=2,c="blue") ##3sigma
-#     plt.axvline(np.quantile(score_sim,0.6,interpolation='higher'),ls="--",lw=2,c="black")##60%分位
 
 #     ax = fig.gca()
 #     ax.patch.set_facecolor("#E6F4F1") 
@@ -427,8 +426,7 @@ def Ramsplit(lenset,core):
 
 #     label_uniq = ['Single','TP','FP','Undec','Sim']
     
-#     ####label_refer为预测标签，0为single；1为sim；0-1为doublet
-#     ####label_base为真实标签，celltype;DOUB;DOUB_sim
+
 #     label_refer[label_refer==0.05] = 0
 #     plt.scatter(xValue[np.all([label_refer==0, label_base !='DOUB'],axis =0)], yValue[np.all([label_refer==0, label_base !='DOUB'],axis =0)], s=1, c = '#FFE6D6', marker='o')
 #     plt.scatter(xValue[np.all([label_refer!=0, label_refer!=1, label_base =='DOUB'],axis =0)], yValue[np.all([label_refer!=0, label_refer!=1, label_base =='DOUB'],axis =0)], s=1, c='#C45462', marker='o')
@@ -673,16 +671,15 @@ class KNNIter(object):
             else:
                 score_unlabel, score_sim, score_detected = CallDoublet_PCoA(iteration, mat, simrate, jaccard_raw, core, npc, k, n_tree,label_refer,labelmat)
     
-            ##当前轮次的分数
+            ##the predicted scores of the cells in current iteration
             score_merge = np.zeros(score_pool.shape[1])
-            ###填入当前轮 unlabel的doublet scores,
+            ###the doublet scores of the unlabelled cells
             score_merge[score_unlabel.index] = score_unlabel.values.squeeze()
-            ###填入当前轮 unlabel的doublet scores
+            ###the doublet scores of the cells detected as doublets
             score_merge[score_detected.index] = score_detected.values.squeeze()
             score_pool = np.vstack((score_pool,score_merge))
 
             thresh_accept = Calsigmathresh(score_unlabel.values.reshape(-1),score_sim)[2] 
-            ####交点+2sigma（自适应）
             
 #             try:
 #                 reject_idx = []
@@ -698,7 +695,7 @@ class KNNIter(object):
             predict_idx = score_unlabel[score_unlabel[0]>thresh_accept].index
 
 
-            ####没有高于阈值的，开启退火
+            ####start annealing 
             if len(predict_idx) == 0:
                 if random.sample([1]*loopproba+[0]*(10-loopproba),1)[0]:
                     iteration += 1
@@ -709,16 +706,15 @@ class KNNIter(object):
             else:
                 scalar2 = MinMaxScaler(feature_range=(0.1,0.9))
                 predict_idx_score = scalar2.fit_transform(np.array(score_unlabel[score_unlabel[0]>thresh_accept])).reshape(1,-1)
-#                 predict_idx_score = scalar.fit_transform(np.array(score_unlabel[np.all([score_unlabel[0]>thresh_accept,unlabel_neig<int(0.6*self.neigbors)],axis=0)])).reshape(1,-1)
-
-                 ###这一轮迭代的结果传给下一轮
                 label_refer[predict_idx] = predict_idx_score
  
             
-            #####labelrefer不为0(从未被预测为doublets)和0.05(被预测为doublets后又被reject)
+            #####labelrefer == 0 the cells those have never been predicted as doublets)
+            #####labelrefer ==0.05: the cells predicted as doublets were discarded by the rejection criterion, this version has been aborted. 
+            #####For that It is almost impossible for a normalized doublet score to be exactly 0.05, the following codes have none matter on the final results.
             pred_doub = label_refer[np.all([label_refer!=0,label_refer!=0.05],axis=0)]
-#             print(len(pred_doub),'cells have been detected')
-            ####加上这轮预测的减去这轮拒绝后的数量达到expect，开启退火
+            
+            ####the number of predicted doublets hits the preset criterion, start anneal
             if len(pred_doub) > int(exprate * mat.shape[0]*0.9):
                 loopproba -= int(np.ceil(5/iteration))  
             # print('Iteraion', iteration, 'elapse', time.time()-time_iter_start)
