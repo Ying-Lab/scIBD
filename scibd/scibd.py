@@ -124,14 +124,14 @@ def GetCluster(mat):
 
 def random_weight(i,weight_data):
     random.seed(i)
-    total = sum(weight_data.values())    # 权重求和
-    ra = random.uniform(0, total)   # 在0与权重和之前获取一个随机数 
+    total = sum(weight_data.values())    # sumup the weights
+    ra = random.uniform(0, total)   # random one value between 0 and the summed weights 
     curr_sum = 0
     ret = None
-    keys = weight_data.keys()        # 使用Python3.x中的keys
+    keys = weight_data.keys()       
     for k in keys:
-        curr_sum += weight_data[k]             # 在遍历中，累加当前权重值
-        if ra <= curr_sum:          # 当随机数<=当前权重和时，返回权重key
+        curr_sum += weight_data[k]             # accumlate the weights in enumerates
+        if ra <= curr_sum:          # return key when the random value <= the summed weights
             ret = k
             break
     return ret
@@ -181,14 +181,14 @@ def CreateDoublets_Cluster_weighted(simulate_size, mat, distancemat, clusterlab)
     cluster_uniq = list(set(clusterlab))
 #     print(len(cluster_uniq), 'clusters')
 
-    ####设置单个类大小权重dict
+
     cluster_weight = {}
-    ####设置两类大小权重dict
+
     cluster_bi_weight = {}
-    ###每个cluster的权重
+
     for i in range(len(cluster_uniq)):
         cluster_weight[str(cluster_uniq[i])] = clusterlab[clusterlab == cluster_uniq[i]].shape[0]
-    ###归一化
+
     cw_st = MinMaxScaler(feature_range=(0,1)).fit_transform(np.array(list(cluster_weight.values())).reshape(-1,1)).squeeze()
     
     for i in range(len(cluster_uniq)):
@@ -207,8 +207,7 @@ def CreateDoublets_Cluster_weighted(simulate_size, mat, distancemat, clusterlab)
 #     single2set = []
 #     simulatelabel = []
     L1_size = int(simulate_size/3*2)
-    ####若聚类只有1，全部随机
-    
+    ####if the cluster results only contain one cluster, set L1 size ==0
     if len(cluster_uniq) == 1:
         L1_size = 0 
     for i in range(L1_size):
@@ -261,10 +260,8 @@ def Splitmat(matsize,ncore):
 
 ##import csr
 def ReshapeJac(mat_conc,label_conc,jac_raw,core):
-#     print('reshape jaccard')
     A = mat_conc[label_conc != 1]  
     B = mat_conc[label_conc == 1]
-    ###判断是不是simulated doublets
 #     jac_extra = metrics.pairwise_distances(B.A, Y=mat_conc.A, metric='jaccard', n_jobs=core)
     jac_extra = CalJac(B,mat_conc)
     jac_new = np.vstack((jac_raw, jac_extra[:,0:A.shape[0]]))
@@ -292,7 +289,7 @@ def concat_set(iteration, jac,mat, sim_rate, label_refer):
     jac_unlabel = jac[np.any([label_refer == 0, label_refer == 0.05],axis = 0)][:,np.any([label_refer == 0, label_refer == 0.05],axis = 0)]
     cl_refer = label_refer[np.any([label_refer == 0, label_refer == 0.05],axis = 0)]
     cl, cd = GetCluster(mat_unlabel)
-    #######在这一步决定simsize，为未分类样本数的10% - 40% 
+
     sim_size = int(sim_rate * mat_unlabel.shape[0])
     time_start = time.time()
     simDOU = CreateDoublets_Cluster_weighted(sim_size, mat_unlabel,cd,cl)
@@ -311,14 +308,12 @@ def get_knn_graph(mat, k, n_tree):
     ncell = mat.shape[0]
     ##peaks
 #     annoy_index.unload() 
-    ###存储npc 维的向量，metric ："euclidean"
     annoy_index = AnnoyIndex(npc, metric='euclidean')
 
-    ###为索引i添加特征向量（peak）
     for i in range(ncell):
         annoy_index.add_item(i, list(mat[i,:]))
    
-    ####建立 n_trees 的森林。查询时，树越多，精度越高。
+    ####build the forest with n_trees. More tress, more  precise
     annoy_index.build(n_tree) 
 
     knn = []
@@ -357,16 +352,6 @@ def Calsigmathresh(score1,score2):
     else:
         return 0, 0, np.mean(score2) - sigma
 
-# def CalKL(a,b,scalesize):
-#     minvalue = min(a.min(),b.min())
-#     maxvalue = max(a.max(),b.max())
-#     scalevalue = maxvalue-minvalue
-#     proba, probb = np.zeros(scalesize),np.zeros(scalesize)
-#     for i in range(scalesize):
-#         proba[i] = (len(a[np.all([a>=minvalue+i*(scalevalue/scalesize), a<=minvalue+(i+1)*(scalevalue/scalesize)],axis=0)]))/len(a)+ 0.00000001
-#         probb[i] = (len(b[np.all([b>=minvalue+i*(scalevalue/scalesize), b<=minvalue+(i+1)*(scalevalue/scalesize)],axis=0)]))/len(b)+ 0.00000001
-#     KLvalue = scipy.stats.entropy(proba,probb)
-#     return KLvalue
 
 def Ramsplit(lenset,core):
     random.seed(1111)
@@ -471,15 +456,12 @@ def Ramsplit(lenset,core):
 def CallDoublet_PCA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,labelmat):
     time1 = time.time()
     mat_concat, label_concat = concat_set(iteration, jac, mat,sim,label_refer)
-    ####label_concat只包含{0:unlabel; 0-1:predicted doublets; 1:simulated doublets}
-    ###mat_concat所有细胞+sim
-    ###label_concat 带标记的raw(0 /3)+ sim(1) 
-    
+    ####label_concat{0:unlabel; 0-1:predicted doublets; 1:simulated doublets}
+
     distance_inuse = GetUMAP(mat_concat)
-    ###k为构建knn图时所用的邻居节点default
     knn,distance = get_knn_graph(distance_inuse, k, n_tree)
     
-    ####3 parts: 1. 未标记unlabel； 2.已标记detected; 3.simulated 
+    ####3 parts: 1. unlabel; 2.detected; 3.simulated 
     cells_unlabel_knn = knn[label_concat==0]
     cells_sim_knn = knn[label_concat==1]
     cells_detected_knn = knn[np.all([label_concat!=0, label_concat !=1],axis =0)]
@@ -488,9 +470,9 @@ def CallDoublet_PCA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,l
     cells_sim_distance = distance[label_concat==1]
     
     cells_detected_distance = distance[np.all([label_concat!=0, label_concat !=1],axis =0)]
-    ###上一轮unlabel的idx
+    ###the idx of unlabelled doublets in the last iteration
     cell_unlabel_idx = np.where(label_concat==0)[0]
-    ###上一轮detected doublet的idx
+    ###the idx of detected doublets in the last iteration
     cell_detected_idx = np.where((label_concat!=0)&(label_concat!=1))[0]
     
     label_raw = label_concat[label_concat!=1]
@@ -501,7 +483,7 @@ def CallDoublet_PCA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,l
     score_unlabel.index = cell_unlabel_idx
     
  
-    ###返回pd格式 的unlabelled cell score
+
     if len(cells_detected_knn) == 0:
         score_detected = pd.DataFrame(np.array([]))
     else:
@@ -513,19 +495,15 @@ def CallDoublet_PCA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,l
 
 def CallDoublet_PCoA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,labelmat):
     mat_concat, label_concat = concat_set(iteration, jac, mat,sim,label_refer)
-    ####label_concat只包含{0:unlabel; 0-1:predicted doublets; 1:simulated doublets}
-    ###mat_concat所有细胞+sim
-    ####基于重构的mat，计算原始细胞与新的doublet之间的关系
-    ###只需计算新的simulated 与 raw 的jaccard
+    ####label_concat : {0:unlabel; 0-1:predicted doublets; 1:simulated doublets}
     mat_jaccard = ReshapeJac(mat_concat, label_concat, jac, core)
 #     mat_jaccard = CalJac(mat_concat)
     ##PCoA_ased
     mat_inuse = PCoA(mat_jaccard,npc)
 
-    ###k为构建knn图时所用的邻居节点default
     knn,distance = get_knn_graph(mat_inuse, k, n_tree)
     
-    ####3 parts: 1. 未标记unlabel； 2.已标记detected; 3.simulated 
+    ####3 parts: 1. unlabel； 2.detected; 3.simulated 
     cells_unlabel_knn = knn[label_concat==0]
     cells_sim_knn = knn[label_concat==1]
     cells_detected_knn = knn[np.all([label_concat!=0, label_concat !=1],axis =0)]
@@ -534,9 +512,9 @@ def CallDoublet_PCoA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,
     cells_sim_distance = distance[label_concat==1]
     
     cells_detected_distance = distance[np.all([label_concat!=0, label_concat !=1],axis =0)]
-    ###上一轮unlabel的idx
+    ###the idx of unlabelled doublets in the last iteration
     cell_unlabel_idx = np.where(label_concat==0)[0]
-    ###上一轮detected doublet的idx
+    ###the idx of detected doublets in the last iteration
     cell_detected_idx = np.where((label_concat!=0)&(label_concat!=1))[0]
     
     label_raw = label_concat[label_concat!=1]
@@ -546,7 +524,6 @@ def CallDoublet_PCoA(iteration, mat, sim, jac, core, npc, k, n_tree,label_refer,
     score_unlabel = pd.DataFrame(score_unlabel)
     score_unlabel.index = cell_unlabel_idx
     
-    ###返回pd格式 的unlabelled cell score
     if len(cells_detected_knn) == 0:
         score_detected = pd.DataFrame(np.array([]))
     else:
@@ -680,17 +657,13 @@ class KNNIter(object):
             exprate = self.exprate
 
         time_start = time.time()
-        ###原始数据的jaccard
         jaccard_raw = self.jac
-        ###参与KNN计算
         label_refer = np.zeros(mat.shape[0]).astype(np.float64)
-        ###控制迭代
         loopproba = 10
         iteration = 1
-        ###保存每一轮的分数
         score_pool = np.array([]).reshape(-1,mat.shape[0])
         random.seed(2222)
-        ####
+        #### annealing
         while random.sample([1]*loopproba+[0]*(10-loopproba),1)[0]:
             print('Iteration',iteration, 'start')
             # time_iter_start = time.time()
