@@ -84,12 +84,19 @@ def CalJac(A,B=None):##scipy mat
         B = A
     else:
         B = B.astype(bool).astype(int)
-    intersect = A.dot(B.T)
-    a_sum = A.sum(axis=1).A1
-    b_sum = B.sum(axis=1).A1
+
+    # Convert to dense matrix before dot product
+    intersect = np.array(A.dot(B.T).todense())
+    
+    # Calculate sums
+    a_sum = A.sum(axis=1)
+    b_sum = B.sum(axis=1)
+
     xx,yy = np.meshgrid(a_sum, b_sum)
     union = ((xx+yy).T - intersect)
-    jac_distance = (1-intersect/union).A
+    
+    # Calculate Jackard distance with the dense arrays
+    jac_distance = 1-intersect/union
     return jac_distance
 
 def F1(score, label):
