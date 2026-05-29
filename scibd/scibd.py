@@ -89,7 +89,17 @@ def CalJac(A,B=None):##scipy mat
     b_sum = B.sum(axis=1).A1
     xx,yy = np.meshgrid(a_sum, b_sum)
     union = ((xx+yy).T - intersect)
-    jac_distance = (1-intersect/union).A
+
+    # Fix for SciPy 1.13+ compatibility: convert to dense before subtraction
+    # Original: jac_distance = (1-intersect/union).A  # Fails in SciPy 1.13+
+    # Fixed: Convert sparse matrix to array first, then perform subtraction
+    jac_distance = 1 - (intersect/union).toarray()
+
+    # Fix for scikit-bio 0.7.0: ensure diagonal is exactly zero
+    # Floating-point arithmetic can leave tiny residuals (~1e-16) on diagonal
+    # scikit-bio requires exact zeros for distance matrix validation
+    np.fill_diagonal(jac_distance, 0)
+
     return jac_distance
 
 def F1(score, label):
@@ -260,15 +270,20 @@ def Splitmat(matsize,ncore):
 
 ##import csr
 def ReshapeJac(mat_conc,label_conc,jac_raw,core):
-    A = mat_conc[label_conc != 1]  
+    A = mat_conc[label_conc != 1]
     B = mat_conc[label_conc == 1]
 #     jac_extra = metrics.pairwise_distances(B.A, Y=mat_conc.A, metric='jaccard', n_jobs=core)
     jac_extra = CalJac(B,mat_conc)
     jac_new = np.vstack((jac_raw, jac_extra[:,0:A.shape[0]]))
     jac_new = np.hstack((jac_new,jac_extra.T))
 
+    # Fix for scikit-bio 0.7.0: ensure diagonal remains exactly zero after matrix combination
+    # Matrix stacking/concatenation can introduce values on the diagonal
+    # This ensures the combined distance matrix passes scikit-bio validation
+    np.fill_diagonal(jac_new, 0)
+
 #     for i in range(len(jac_new)):
-#         assert jac_new[i][i] == 0 
+#         assert jac_new[i][i] == 0
     return jac_new
 
 def PCoA(mat_jaccard,npc,showfig=False):
